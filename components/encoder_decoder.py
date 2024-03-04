@@ -120,16 +120,16 @@ class Decoder(nn.Module):
         self.ac_layer_2 = AutoCorrelationLayer(input_features=hidden_features, hidden_features=hidden_features,
                                                heads=heads, factor=factor, flag=flag)
 
-        self.linear_layer_1 = nn.Linear(hidden_features, hidden_features)
-        self.linear_layer_2 = nn.Linear(hidden_features, hidden_features)
-        self.linear_layer_3 = nn.Linear(hidden_features, hidden_features)
+        self.linear_layer_1 = nn.Linear(hidden_features, hidden_features, bias=False)
+        self.linear_layer_2 = nn.Linear(hidden_features, hidden_features, bias=False)
+        self.linear_layer_3 = nn.Linear(hidden_features, hidden_features, bias=False)
 
         self.conv_layer_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
                                       kernel_size=3, padding=1, padding_mode='replicate', bias=False)
         self.conv_layer_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
                                       kernel_size=3, padding=1, padding_mode='replicate', bias=False)
 
-        self.linear_layer_season = nn.Linear(in_features=hidden_features, out_features=hidden_features)
+        self.linear_layer_season = nn.Linear(in_features=hidden_features, out_features=hidden_features, bias=False)
 
         self.activation = nn.LeakyReLU()
 
@@ -222,7 +222,7 @@ class AutoFormer(nn.Module):
                                decomposition_kernel=decomposition_kernel,
                                heads=heads, factor=factor, flag=flag)
 
-        self.final_linear_layer = nn.Linear(in_features=hidden_features, out_features=output_features)
+        self.final_linear_layer = nn.Linear(in_features=hidden_features, out_features=output_features, bias=False)
         self.activation = nn.LeakyReLU()
 
     def forward(self, x: torch.Tensor, x_time: torch.Tensor, y_time: torch.Tensor) -> torch.Tensor:

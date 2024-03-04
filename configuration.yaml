@@ -1,0 +1,32 @@
+model_structure:
+  input_len: 96
+  mask_len: 48
+  output_len: 96
+  hidden_features: 128
+  convolution_features: 256
+  heads: 8
+  decomposition_kernel: 24
+  factor: 1
+
+train_settings:
+  path: '/autoformer/dataset/train/targets/consumption.csv'
+  scale_type: 'standard'
+  target: ['total']
+  features: ['total']
+  dates: ['timestamp']
+  learning_rate: 0.001
+  batch_size: 32
+  epochs: 10
+  shuffle: True
+  save_folder: '/autoformer/trained_models/'
+
+test_settings:
+  path: '/autoformer/dataset/test/targets/consumption.csv'
+  target: ['total']
+  features: ['total']
+  dates: ['timestamp']
+  batch_size: 1
+  shuffle: False
+  trained_model_path: '/autoformer/trained_models/checkpoint.pth'
+  trained_scaler_path: '/autoformer/trained_models/scaler.joblib'
+

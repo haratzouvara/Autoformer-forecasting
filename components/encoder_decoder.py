@@ -42,9 +42,9 @@ class Encoder(nn.Module):
         self.decomp_2 = DecomposeSequence(kernel_size=decomposition_kernel, stride=1)
 
         self.conv_layer_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+                                      kernel_size=3, padding=1, padding_mode='replicate')
         self.conv_layer_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+                                      kernel_size=3, padding=1, padding_mode='replicate')
 
         self.activation = nn.LeakyReLU()
         self.layernorm = nn.LayerNorm(hidden_features)
@@ -124,9 +124,9 @@ class Decoder(nn.Module):
         self.linear_layer_3 = nn.Linear(hidden_features, output_features)
 
         self.conv_layer_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+                                      kernel_size=3, padding=1, padding_mode='replicate')
         self.conv_layer_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+                                      kernel_size=3, padding=1, padding_mode='replicate')
 
         self.linear_layer_season = nn.Linear(in_features=hidden_features, out_features=output_features)
         self.layernorm = nn.LayerNorm(hidden_features)
@@ -219,7 +219,9 @@ class AutoFormer(nn.Module):
                                decomposition_kernel=decomposition_kernel,
                                heads=heads, factor=factor, flag=flag)
 
-        self.final_linear_layer = nn.Linear(in_features=hidden_features, out_features=output_features)
+        self.activation = nn.LeakyReLU()
+
+        self.final_linear_layer = nn.Linear(in_features=output_features, out_features=output_features)
 
     def forward(self, x: torch.Tensor, x_time: torch.Tensor, y_time: torch.Tensor) -> torch.Tensor:
         """
@@ -248,6 +250,8 @@ class AutoFormer(nn.Module):
         decoder_season, decoder_trend = self.decoder(seasonal_init_emb, trend_init, encoder_output)
 
         final_prediction = decoder_season + decoder_trend
+        # final_prediction = self.activation(final_prediction)
+        # final_prediction = self.final_linear_layer(final_prediction)
         final_prediction = final_prediction[:, -self.output_len:, :]
 
         return final_prediction

@@ -24,9 +24,9 @@ class Embeddings(nn.Module):
         super(Embeddings, self).__init__()
 
         self.conv_layer = nn.Conv1d(in_channels=input_features, out_channels=output_features,
-                                    kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+                                    kernel_size=3, padding=1, padding_mode='replicate')
 
-        self.linear_layer = nn.Linear(in_features=3, out_features=output_features, bias=False)
+        self.linear_layer = nn.Linear(in_features=3, out_features=output_features)
 
         self.activation = nn.LeakyReLU()
 

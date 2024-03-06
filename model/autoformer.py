@@ -190,7 +190,7 @@ class Autoformer(nn.Module):
 
         metrics = Metrics(np.array(actuals), np.array(results))
 
-        print("RMSE is equal to: {}".format(metrics.rmse()))
+        print("MSE is equal to: {}".format(metrics.mse()))
 
         previous_inverse = [scaler.inverse_transform(sequence) for sequence in previous]
         actuals_inverse = [scaler.inverse_transform(sequence) for sequence in actuals]

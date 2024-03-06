@@ -10,7 +10,7 @@ class Metrics:
       predicted: The predicted values.
 
     Methods:
-      rmse(): Calculate the Root Mean Squared Error (RMSE) between actual and predicted values.
+      mse(): Calculate the Root Mean Squared Error (MSE) between actual and predicted values.
 
     Raises:
         ValueError: If the shapes of actual values and predicted values are not the same.
@@ -22,17 +22,17 @@ class Metrics:
         self.actual = actual
         self.predicted = predicted
 
-    def rmse(self) -> float:
+    def mse(self) -> float:
         """
-        Calculate the Root Mean Squared Error (RMSE) between actual and predicted values.
+        Calculate the Mean Squared Error (MSE) between actual and predicted values.
 
         Returns:
-        - float: The RMSE score.
+          float: The MSE score.
         """
 
         if self.actual.shape != self.predicted.shape:
             raise ValueError("Shape of actual values and predicted values must be the same")
 
-        rmse_value = np.sqrt(np.mean((self.actual - self.predicted) ** 2))
+        mse_value = np.mean((self.actual - self.predicted) ** 2)
 
-        return rmse_value
+        return mse_value

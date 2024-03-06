@@ -33,9 +33,6 @@ class Embeddings(nn.Module):
     def forward(self, x: torch.Tensor, x_time: torch.Tensor) -> torch.Tensor:
 
         x = self.conv_layer(x.permute(0, 2, 1)).permute(0, 2, 1)
-        x = self.activation(x)
-
         x_time = self.linear_layer(x_time)
-        x_time = self.activation(x_time)
 
         return x + x_time

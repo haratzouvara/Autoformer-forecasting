@@ -65,7 +65,6 @@ class Encoder(nn.Module):
         conv_output = self.conv_layer_1(season_first.permute(0, 2, 1))
         conv_output = self.activation(conv_output)
         conv_output = self.conv_layer_2(conv_output)
-        conv_output = self.activation(conv_output)
 
         conv_output = conv_output.permute(0, 2, 1) + season_first
         encoder_layer_output, _ = self.decomp_2(conv_output)
@@ -106,7 +105,7 @@ class Decoder(nn.Module):
          layernorm: Normalize season output.
      """
 
-    def __init__(self, input_features: int, hidden_features: int, convolution_features: int,
+    def __init__(self, input_features: int, hidden_features: int, convolution_features: int, output_features: int,
                  decomposition_kernel: int, heads: int, factor: int, flag: str):
         super(Decoder, self).__init__()
 
@@ -120,21 +119,19 @@ class Decoder(nn.Module):
         self.ac_layer_2 = AutoCorrelationLayer(input_features=hidden_features, hidden_features=hidden_features,
                                                heads=heads, factor=factor, flag=flag)
 
-        self.linear_layer_1 = nn.Linear(hidden_features, hidden_features, bias=False)
-        self.linear_layer_2 = nn.Linear(hidden_features, hidden_features, bias=False)
-        self.linear_layer_3 = nn.Linear(hidden_features, hidden_features, bias=False)
+        self.linear_layer_1 = nn.Linear(hidden_features, output_features)
+        self.linear_layer_2 = nn.Linear(hidden_features, output_features)
+        self.linear_layer_3 = nn.Linear(hidden_features, output_features)
 
         self.conv_layer_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
                                       kernel_size=3, padding=1, padding_mode='replicate', bias=False)
         self.conv_layer_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
                                       kernel_size=3, padding=1, padding_mode='replicate', bias=False)
 
-        self.linear_layer_season = nn.Linear(in_features=hidden_features, out_features=hidden_features, bias=False)
+        self.linear_layer_season = nn.Linear(in_features=hidden_features, out_features=output_features)
+        self.layernorm = nn.LayerNorm(hidden_features)
 
         self.activation = nn.LeakyReLU()
-
-        self.layernorm = nn.LayerNorm(hidden_features)
-        self.dropout = nn.Dropout(0.1)
 
     def forward(self, seasonal_init: torch.Tensor, trend_init: torch.Tensor, encoder_output: torch.Tensor) \
             -> Tuple[torch.Tensor, torch.Tensor]:
@@ -160,7 +157,7 @@ class Decoder(nn.Module):
 
         conv_output = self.conv_layer_1(season_2.permute(0, 2, 1))
         conv_output = self.activation(conv_output)
-        conv_output = self.activation(self.conv_layer_2(conv_output).permute(0, 2, 1)) + season_2
+        conv_output = self.conv_layer_2(conv_output).permute(0, 2, 1) + season_2
 
         season_3, trend_3 = self.decomp_3(conv_output)
         season_output = self.layernorm(season_3)
@@ -218,12 +215,11 @@ class AutoFormer(nn.Module):
                                decomposition_kernel=decomposition_kernel,
                                heads=heads, factor=factor, flag=flag)
         self.decoder = Decoder(input_features=hidden_features, hidden_features=hidden_features,
-                               convolution_features=convolution_features,
+                               convolution_features=convolution_features, output_features=output_features,
                                decomposition_kernel=decomposition_kernel,
                                heads=heads, factor=factor, flag=flag)
 
-        self.final_linear_layer = nn.Linear(in_features=hidden_features, out_features=output_features, bias=False)
-        self.activation = nn.LeakyReLU()
+        self.final_linear_layer = nn.Linear(in_features=hidden_features, out_features=output_features)
 
     def forward(self, x: torch.Tensor, x_time: torch.Tensor, y_time: torch.Tensor) -> torch.Tensor:
         """
@@ -252,9 +248,6 @@ class AutoFormer(nn.Module):
         decoder_season, decoder_trend = self.decoder(seasonal_init_emb, trend_init, encoder_output)
 
         final_prediction = decoder_season + decoder_trend
-        final_prediction = self.activation(final_prediction)
-        final_prediction = self.final_linear_layer(final_prediction)
-
         final_prediction = final_prediction[:, -self.output_len:, :]
 
         return final_prediction

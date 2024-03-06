@@ -14,9 +14,9 @@ train_settings:
   target: ['total']
   features: ['total']
   dates: ['timestamp']
-  learning_rate: 0.001
-  batch_size: 32
-  epochs: 10
+  learning_rate: 0.0001
+  batch_size: 128
+  epochs: 5
   shuffle: True
   save_folder: '/autoformer/trained_models/'
 

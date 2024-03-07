@@ -41,10 +41,10 @@ class Encoder(nn.Module):
         self.decomp_1 = DecomposeSequence(kernel_size=decomposition_kernel, stride=1)
         self.decomp_2 = DecomposeSequence(kernel_size=decomposition_kernel, stride=1)
 
-        self.conv_layer_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate')
-        self.conv_layer_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate')
+        self.conv_ff_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
+                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+        self.conv_ff_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
+                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
 
         self.activation = nn.LeakyReLU()
         self.layernorm = nn.LayerNorm(hidden_features)
@@ -62,11 +62,12 @@ class Encoder(nn.Module):
 
         autocorr_x = self.ac_layer(x, x, x) + x
         season_first, _ = self.decomp_1(autocorr_x)
-        conv_output = self.conv_layer_1(season_first.permute(0, 2, 1))
+        conv_output = self.conv_ff_1(season_first.permute(0, 2, 1))
         conv_output = self.activation(conv_output)
-        conv_output = self.conv_layer_2(conv_output)
+        conv_output = self.conv_ff_2(conv_output)
+        conv_output = self.activation(conv_output.permute(0, 2, 1))
 
-        conv_output = conv_output.permute(0, 2, 1) + season_first
+        conv_output = conv_output + season_first
         encoder_layer_output, _ = self.decomp_2(conv_output)
         encoder_layer_output = self.layernorm(encoder_layer_output)
 
@@ -95,12 +96,12 @@ class Decoder(nn.Module):
          decomp_3: DecomposeSequence module for the third decomposition.
          ac_layer_1: AutoCorrelationLayer module for the first autocorrelation.
          ac_layer_2: AutoCorrelationLayer module for the second autocorrelation.
-         linear_layer_1: Linear layer for the first trend linear transformation.
-         linear_layer_2: Linear layer for the second trend linear transformation.
-         linear_layer_3: Linear layer for the third trend linear transformation.
-         conv_layer_1: 1D Convolution layer for the first convolutional transformation in the FF layer.
-         conv_layer_2: 1D Convolution layer for the second convolutional transformation in the FF layer.
-         linear_layer_season: 1D Convolution layer for the final seasonal output.
+         conv_trend_1: 1D Convolution layer for the first trend convolutional transformation.
+         conv_trend_2: 1D Convolution layer for the second trend convolutional transformation.
+         conv_trend_3: 1D Convolution layer for the third trend convolutional transformation.
+         conv_ff_1: 1D Convolution layer for the first convolutional transformation in the FF layer.
+         conv_ff_2: 1D Convolution layer for the second convolutional transformation in the FF layer.
+         conv_season: 1D Convolution layer for the final seasonal output.
          activation: Activation function.
          layernorm: Normalize season output.
      """
@@ -119,16 +120,20 @@ class Decoder(nn.Module):
         self.ac_layer_2 = AutoCorrelationLayer(input_features=hidden_features, hidden_features=hidden_features,
                                                heads=heads, factor=factor, flag=flag)
 
-        self.linear_layer_1 = nn.Linear(hidden_features, output_features)
-        self.linear_layer_2 = nn.Linear(hidden_features, output_features)
-        self.linear_layer_3 = nn.Linear(hidden_features, output_features)
+        self.conv_trend_1 = nn.Conv1d(in_channels=hidden_features, out_channels=output_features,
+                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+        self.conv_trend_2 = nn.Conv1d(in_channels=hidden_features, out_channels=output_features,
+                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+        self.conv_trend_3 = nn.Conv1d(in_channels=hidden_features, out_channels=output_features,
+                                      kernel_size=3, padding=1, padding_mode='replicate', bias=False)
 
-        self.conv_layer_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate')
-        self.conv_layer_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
-                                      kernel_size=3, padding=1, padding_mode='replicate')
+        self.conv_ff_1 = nn.Conv1d(in_channels=hidden_features, out_channels=convolution_features,
+                                   kernel_size=3, padding=1, padding_mode='replicate', bias=False)
+        self.conv_ff_2 = nn.Conv1d(in_channels=convolution_features, out_channels=hidden_features,
+                                   kernel_size=3, padding=1, padding_mode='replicate', bias=False)
 
-        self.linear_layer_season = nn.Linear(in_features=hidden_features, out_features=output_features)
+        self.conv_season = nn.Conv1d(in_channels=hidden_features, out_channels=output_features,
+                                     kernel_size=3, padding=1, padding_mode='replicate', bias=False)
         self.layernorm = nn.LayerNorm(hidden_features)
 
         self.activation = nn.LeakyReLU()
@@ -149,21 +154,21 @@ class Decoder(nn.Module):
 
         autocorr_1 = self.ac_layer_1(seasonal_init, seasonal_init, seasonal_init) + seasonal_init
         season_1, trend_1 = self.decomp_1(autocorr_1)
-        trend_1 = self.linear_layer_1(trend_1)
+        trend_1 = self.conv_trend_1(trend_1.permute(0, 2, 1)).permute(0, 2, 1)
 
         autocorr_2 = self.ac_layer_2(season_1, encoder_output, encoder_output) + season_1
         season_2, trend_2 = self.decomp_2(autocorr_2)
-        trend_2 = self.linear_layer_2(trend_2)
+        trend_2 = self.conv_trend_2(trend_2.permute(0, 2, 1)).permute(0, 2, 1)
 
-        conv_output = self.conv_layer_1(season_2.permute(0, 2, 1))
+        conv_output = self.conv_ff_1(season_2.permute(0, 2, 1))
         conv_output = self.activation(conv_output)
-        conv_output = self.conv_layer_2(conv_output).permute(0, 2, 1) + season_2
+        conv_output = self.activation(self.conv_ff_2(conv_output).permute(0, 2, 1)) + season_2
 
         season_3, trend_3 = self.decomp_3(conv_output)
         season_output = self.layernorm(season_3)
-        season_output = self.linear_layer_season(season_output)
+        season_output = self.conv_season(season_output.permute(0, 2, 1)).permute(0, 2, 1)
 
-        trend_3 = self.linear_layer_3(trend_3)
+        trend_3 = self.conv_trend_3(trend_3.permute(0, 2, 1)).permute(0, 2, 1)
 
         trend_output = trend_init + trend_1 + trend_2 + trend_3
 
@@ -195,7 +200,6 @@ class AutoFormer(nn.Module):
         emb: Embedding module.
         encoder: EncoderLayer module.
         decoder: DecoderLayer module.
-        final_linear_layer: Linear layer for the final prediction.
     """
 
     def __init__(self, input_features: int, hidden_features: int, convolution_features: int,
@@ -218,10 +222,6 @@ class AutoFormer(nn.Module):
                                convolution_features=convolution_features, output_features=output_features,
                                decomposition_kernel=decomposition_kernel,
                                heads=heads, factor=factor, flag=flag)
-
-        self.activation = nn.LeakyReLU()
-
-        self.final_linear_layer = nn.Linear(in_features=output_features, out_features=output_features)
 
     def forward(self, x: torch.Tensor, x_time: torch.Tensor, y_time: torch.Tensor) -> torch.Tensor:
         """
@@ -250,8 +250,7 @@ class AutoFormer(nn.Module):
         decoder_season, decoder_trend = self.decoder(seasonal_init_emb, trend_init, encoder_output)
 
         final_prediction = decoder_season + decoder_trend
-        # final_prediction = self.activation(final_prediction)
-        # final_prediction = self.final_linear_layer(final_prediction)
+
         final_prediction = final_prediction[:, -self.output_len:, :]
 
         return final_prediction

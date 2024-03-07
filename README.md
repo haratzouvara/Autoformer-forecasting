@@ -21,7 +21,7 @@ making it adept at handling intricate time dependencies.
 
 Here are some example results achieved using AutoFormer for 4 days ahead forecasting:
 
-![result1](images/1247.png)
+![result1](images/1123.png)
 
 
     
